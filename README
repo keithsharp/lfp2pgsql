@@ -1,0 +1,106 @@
+1) Introduction.
+
+lfp2pgsql is a small, commandline, application to parse a Land Form 
+Panorama[1] DXF file as released by the UK Ordnance Survey under their 
+Opendata program[2] and load the data into a Postgres/PostGIS database.  
+The application is modelled on shp2pgsql[3] and builds upon initial work 
+by Nick Whitelegg[4][5].
+
+2) Compiling
+
+You have probably got this code by checking out a git repository so you will
+need to perform the following commands:
+
+        autoreconf --force --install
+        configure
+        make
+        make install
+
+Full build documentation can be found in the INSTALL file.
+
+3) Usage
+
+Running the program is as simple as:
+
+        lfp2pgsql nn00.dxf contours
+
+This will print SQL statements to standard out which will create a new table
+called contours and then insert all of the features from the DXF file into
+the contour table.  You can pipe the SQL directly into the psql command, 
+assuming you already have a database called opendata:
+
+         lfp2pgsql nn00.dxf contours | psql -d opendata
+
+lfp2pgsql accepts a number of flags to modify the SQL output.  If you want 
+to delete the table and start again use the -d flag:
+
+         lfp2pgsql -d nn00.dxf contours | psql -d opendata
+
+The -a flag creates SQL statements to insert additional data into an existing
+table, for example to load multiple files sequentially:
+
+         lfp2pgsql nn00.dxf contours | psql -d opendata
+         lfp2pgsql -a nn01.dxf contours | psql -d opendata
+         lfp2pgsql -a nn02.dxf contours | psql -d opendata
+         ...
+
+The -p flag limits the SQL statements to those necessary to create the table.
+You could use this to script a loop to import a large quantity of data:
+
+         lfp2pgsql -c nn00.dxf contours | psql -d opendata
+         lfp2pgsql -a nn00.dxf contours | psql -d opendata
+         lfp2pgsql -a nn01.dxf contours | psql -d opendata
+         lfp2pgsql -a nn02.dxf contours | psql -d opendata
+         ...
+
+The -c flag is the default option, it ouputs SQL to create the table and 
+then to insert the data from the DXF file.  The following are equivalent:
+
+         lfp2pgsql -c nn00.dxf contours | psql -d opendata
+         lfp2pgsql nn00.dxf contours | psql -d opendata
+
+The -c, -p, -a, and -d flags are mutually exclusive, if you supply more than
+one lfp2pgsql will exit with an error.
+
+The -I flag causes lfp2pgsql to create an index on the geometry column of 
+the resulting table.  You can use the -I flag with any of the other flags:
+
+         lfp2pgsql -c -I  nn00.dxf contours | psql -d opendata
+         lfp2pgsql -p -I  nn00.dxf contours | psql -d opendata
+         lfp2pgsql -a -I  nn00.dxf contours | psql -d opendata
+         lfp2pgsql -d -I  nn00.dxf contours | psql -d opendata
+
+4) Landform Panorama Features
+
+The following are the features that ae contained within the Landform Panorama
+DXF files.  At this time lfp2pgsql only creates SQL INSERT statements for the
+following subset of features:
+
+         G8040201       Contours
+         G8040202       Lakes
+         G8040203       Breakline
+         G0804204       Coastline
+         G8040205       Ridgelines
+         G8040207       Formlines
+
+The following are the features that are ignored by lfp2pgsql:
+
+         G8040200       Spothights [sic]
+         G8040570       Copyrightsymbol
+         G8040571       Footnotes
+         G8040572       Gridlinesandvalues
+         G8040573       Gridvalues
+         G8040575       Default
+
+I am happy to update the parser if anyone has a good reason why the data I 
+currently ignore should be handled in some way.
+
+Keith
+<keith.sharp@gmail.com>
+March 2011
+
+[1] http://www.ordnancesurvey.co.uk/oswebsite/products/landformpanorama/
+[2] http://www.ordnancesurvey.co.uk/oswebsite/opendata/
+[3] http://postgis.refractions.net/docs/ch04.html#shp2pgsql_usage
+[4] http://lists.openstreetmap.org/pipermail/talk-gb/2011-March/011101.html
+[5] http://lists.openstreetmap.org/pipermail/talk-gb/2011-March/011184.html
